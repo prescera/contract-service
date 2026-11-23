@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-23
+### Changed (breaking)
+- Replaced the C++ SCITT CCF application with a TypeScript CCF JavaScript application that
+  runs on Azure Confidential Ledger (deployed via `PUT /app/userDefinedEndpoints`).
+- Implements the DEPA Training v2 protocol: signed requests (ES256 JWS, replay table, iat
+  window), app-level n-of-m governance, service signing key and `/info`, CCR release registry
+  with immutable release ids, dataset catalog, `depa-training/contract/v2` contracts and
+  signatures, attested run authorisation with Run Authorization Tokens, run events and
+  execution receipts that require a pinned-KMS release receipt for every contract dataset,
+  trust-bundle digest in the run binding, and RAT refresh for in-flight runs.
+- Shared code (`packages/depa-ccf-common`) is vendored from `depa-training-kms-azure`.
+
+### Removed
+- C++ application, `3rdparty`, `pyscitt` CLI, SCITT demo / demo UI, old Docker images and
+  scripts, and SCITT-specific documentation.
+
 ## [0.5.0]
 ### Added
 - Adds tag based workflow to build and release CLI (#161)

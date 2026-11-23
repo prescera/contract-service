@@ -1,92 +1,160 @@
-# Contact Ledger Service
+# DEPA Training v2 — Contract Service (`depa-contract-service`)
 
-This repository contains the source code for contract service, an application
-that runs on top of [CCF](https://ccf.dev/) implementing standards developed within the [DEPA Training Framework](https://github.com/iSPIRT/depa-training/). Its purpose is to provide registry for contracts. The contract service achieves this by allowing signed contracts to be submitted to a secure immutable ledger, and returning receipts which prove contracts have been stored.
+A CCF JavaScript application, hosted on Azure Confidential Ledger (ACL), that is one of the two
+Data Collaborative (DC) trust services of DEPA Training v2. It registers parties, publishes the
+dataset catalog, records multi-party training contracts, authorises individual clean-room runs
+(issuing Run Authorization Tokens for the KMS), and records run events and execution receipts
+in the ledger.
 
-This research project is at an early stage and is open sourced to facilitate academic collaborations. We are keen to engage in research collaborations on this project, please do reach out to discuss this by opening an issue.
+Version 2 replaces the earlier C++ SCITT application, which cannot run on ACL. The normative
+protocol is `docs/specs/protocol.md` in the `depa-training` repository (§ references below).
 
-## Getting Started
+## What the contract service holds
 
-The instructions below guide you through building and deploying a local instance of contract service for development and testing purposes.
+| State | Changed by |
+|---|---|
+| Parties, members, constitution, settings, pinned KMS JWKS, JWT validation policies, approved app digests, CCR release registry | app-level DC governance (§4), same engine and actions as the KMS |
+| Dataset catalog: immutable, owner-signed descriptor versions (§7.2) | dataset owner (`catalog.publish`) |
+| Contracts `depa-training/contract/v2` with signatures, state, runs used (§8) | TDC proposes; TDC + every dataset owner sign; any required party or governance revokes |
+| Runs, events and execution receipts (§9.3, §9.5) | attested CCRs (authorisation), run signing key (events) |
+| Service signing key (ES256, signs RATs and execution receipts) | generated inside CCF at bootstrap |
 
-Being a CCF application, contract service runs in SGX enclaves. However, for testing purposes, it also supports running on non-SGX hardware in what is called *virtual* mode.
+Governance cannot change contract content; it can only revoke (`revoke_contract`).
 
-All instructions below assume Linux as the operating system.
+## Role in a run
 
-### Quick Demo
+1. **Contract.** The TDC proposes a contract naming exact catalog versions (`manifest_digest`),
+   recipes (by digest), platforms, CCR releases (tier 1/2) or a custom CCR (tier 3), privacy
+   budget and output rules. The CS validates it against the party registry, its own release
+   registry and the catalog. It becomes `active` once the TDC and every dataset owner have
+   signed `contract_digest` and `not_before` has passed.
+2. **Run authorisation** (`POST /contracts/{id}/runs`, one transaction): the binding's
+   `trust_bundle_digest` equals the governance setting (mandatory for non-virtual platforms,
+   §9.1); attestation proves the binding; contract active and within validity; `runs_used < max_runs`; recipe and platform
+   allowed; the attested measurement belongs to an approved, non-revoked release in the CS
+   registry that the contract lists (tier 3: equals `custom_ccr.measurement_id`). The CS
+   increments `runs_used`, stores the run and returns a RAT (300 s) for the KMS. In-flight runs
+   refresh it with `POST /contracts/{id}/runs/{run_id}/rat` (§9.3a), which re-checks run and
+   contract state, so revocation stops a running CCR at its next refresh.
+3. **Events.** The CCR posts `started` / `progress` / `completed` / `failed` events signed with
+   the run key from the binding; `seq` strictly increases; after the deadline only
+   `completed`/`failed` are accepted, once.
+4. **Execution receipt.** `completed` carries the receipt. The CS requires a valid KMS release
+   receipt (verified against the pinned KMS JWKS, bound to this run's `run_id` and
+   `binding_hash`) for **every** contract dataset, checks privacy spent ≤ budget, output formats
+   and recipients, and the metrics allowlist, then returns a CS-signed receipt.
 
-A live contract ledger service (single-node, virtual mode) for demos is available at **https://216.48.178.54:8000**. This service can be used to sign contracts and register them on the ledger via the [demo UI](./demo-ui/README.md). This GUI application provides a user-friendly web interface for demonstrating multi-party electronic contract signing for selected DEPA training scenarios.
+## API
 
-The quickest way to get started is to create a GitHub Codespace on the `main` branch, run `./launch-demo.sh` from the project root, then open your browser and navigate to **http://localhost:5050**
+All paths are under `/app`. "signed" = body `{"jws": …}` (§3.2). Details: [docs/api.md](docs/api.md).
 
-1. Go to **Code → Codespaces → Create codespace on main**
-2. Open a terminal and run:
-   ```bash
-   ./launch-demo.sh
-   ```
-   This script installs all required prerequisites and launches the demo UI.
-3. Open your browser and navigate to **http://localhost:5050**
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/info` | — | service, version, `bundle_digest`, `bundle_digest_approved`, JWKS |
+| GET | `/receipt?transaction_id=` | — | CCF receipt (202 while fetching) |
+| POST | `/gov/bootstrap` | ACL Administrator (sandbox: CCF user cert) | one-time bootstrap |
+| POST/GET | `/gov/proposals` | signed (dc-member) / — | propose, list |
+| GET | `/gov/proposals/{id}` | — | proposal with tally |
+| POST | `/gov/proposals/{id}/ballots` | signed (dc-member) | vote |
+| GET | `/gov/members`, `/gov/constitution`, `/gov/state` | — | governance state |
+| GET | `/parties[/{id}]`, `/releases[/{id}]` | — | registries |
+| POST | `/catalog/datasets` | signed (owner) | publish a descriptor version |
+| GET | `/catalog/datasets`, `/catalog/datasets/{owner}/{name}`, `…/versions/{version}` | — | catalog |
+| POST | `/contracts` | signed (tdc) | propose |
+| GET | `/contracts?party=`, `/contracts/{id}` | — | list / get (`state`, signatures, `runs_used`) |
+| POST | `/contracts/{id}/signatures` | signed (required party) | sign `contract_digest` |
+| POST | `/contracts/{id}/revoke` | signed (required party) | revoke |
+| POST | `/contracts/{id}/runs` | attested | authorise a run, issue RAT |
+| GET | `/contracts/{id}/runs` | — | runs of a contract |
+| POST | `/contracts/{id}/runs/{run_id}/rat` | run signing key | refresh the RAT of an in-flight run |
+| POST | `/contracts/{id}/runs/{run_id}/events` | run signing key | run event / execution receipt |
+| GET | `/runs/{run_id}` | — | run, events, receipt |
 
-This demo requires two GitHub accounts and corresponding GitHub Pages user/organization sites, one for the Training Data Providers (TDPs - represented in this demo by a single entity for sake of simplicity) and one for the Training Data Consumer (TDC). To create a GitHub page site, follow the [GitHub Pages user/organization documentation](https://pages.github.com/). You will be asked to create a new repository with the URL `<username>.github.io`. If you don't have two GitHub accounts or you don't want to use the GitHub Pages site associated with your account, you can create a new user on [GitHub](https://github.com/signup).
+Governance actions: the common set (`set_member`, `remove_member`, `set_party`,
+`remove_party`, `set_constitution`, `set_peer_service`, `set_jwt_validation_policy`,
+`set_settings`, `approve_app_digest`, `approve_ccr_release`, `revoke_ccr_release`) plus
+`revoke_contract`.
 
-Note: If you’re using GitHub Codespaces, be sure to create and use separate Codespace instances under the respective GitHub accounts for the TDP and TDC, when executing the contract signing steps specific to each of them.
+## Local development
 
-If you encounter any issues with the live demo service, please contact the repository owners by opening an issue. To run your own instance of the contract service, follow the instructions below.
+Requirements: Node ≥ 18, Docker, jq, Python ≥ 3.10 (integration tests). The integration tests
+and `check-common` expect `../depa-training-kms-azure` (or `DEPA_KMS_REPO`).
 
-### Build and Deploy using Docker
-
-Use the following commands to start a single-node CCF network with the contract service application setup for development purposes.
-
-Note: `PLATFORM` should be set to `sgx` or `virtual` to select the type of build.
-
-```sh
-export PLATFORM=<sgx|virtual>
-./docker/build.sh
-./docker/run-dev.sh
+```bash
+make build              # tsc + rollup + dist/bundle.json, dist/bundle_digest.txt
+make test               # unit tests (jest; shared + contract-service)
+make sandbox-up         # CCF virtual sandbox on 127.0.0.1:18011 with the app
+make test-integration   # both services in two sandboxes, end-to-end
+make check-common       # vendored shared code identical to the KMS repository
+scripts/sync-common.sh  # re-vendor shared code from the KMS repository
 ```
 
-The node is now reachable at https://127.0.0.1:8000/.
+### Sandbox script interface (stable)
 
-Alternatively, a live demo contract service is available at **https://216.48.178.54:8000** for testing purposes. If you encounter any issues, please contact the repository owners by opening an issue.
-
-Note that `run-dev.sh` configures the network in a way that is not suitable for production, in particular it generates an ad-hoc governance member key pair and it disables API authentication.
-
-### Sign and Register Contracts
-
-Follow [instructions](./demo/contract/README.md) on how to sign and register contracts with an active contract service. You can also try the [demo UI](./demo-ui/README.md) to sign and register contracts using a user-friendly web interface.
-
-### Development setup
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for instructions on building, running, and testing contract-ledger without Docker.
-
-### Using the CLI
-
-To help with the configuration of an application or to be able to interact with its API you could leverage the available CLI.
-
-The `pyscitt` CLI is written in Python and is available on PyPi [here](https://pypi.org/project/pyscitt/). To install it, you can use the following command:
-
-```sh
-pip install pyscitt
+```
+scripts/sandbox-up.sh <port> [--jwt-issuer <issuer.json>] [--no-build] [--recreate]
+scripts/sandbox-down.sh [<port> | --all] [--purge]
 ```
 
-The CLI is also distributed through the GitHub releases as a `wheel` file. Optionally, it can be used from within the repository using the [`./pyscitt.sh`](../pyscitt.sh) script. For example: 
+Identical to the KMS scripts (container `depa2-dc-cs-<port>`, ports 18000–18199, idempotent).
+stdout is one JSON line with `url`, `app_url`, `service_cert`, `user_cert`, `user_key`,
+`member_cert`, `member_key`, `container`, `bundle_digest`, `workspace`; files live in
+`${DEPA_SANDBOX_DIR:-<repo>/workspace}/sandbox-<port>/`. See the KMS README for bootstrap and
+the Python ≥ 3.13 TLS note.
 
-```sh
-./pyscitt.sh --help
+### Shared code
+
+`packages/depa-ccf-common/` (governance engine, signed requests, JCS, JWS, attestation,
+party and release registries, peer tokens, HTTP/logging) and the files listed in
+`scripts/common-paths.txt` (integration tests, sandbox and deploy scripts, build tooling) are
+developed in `depa-training-kms-azure` and vendored verbatim. Do not edit them here; change them
+in the KMS repository and run `scripts/sync-common.sh`. `scripts/check-common.sh` fails if the
+copies differ.
+
+## ACL deployment
+
+```bash
+ACL_NAME=<ledger> scripts/deploy-acl.sh      # or ACL_URL + ACL_CACERT; ACL_TOKEN optional (az CLI)
 ```
 
-The CLI is extensively used in the following functional tests and demo scripts:
+Then `POST /app/gov/bootstrap` once as ACL Administrator, and propose `set_settings`
+(`base_url` = public URL, the RAT `iss`; `trust_bundle_digest`, identical to the KMS), `set_peer_service` (KMS URL + KMS `/info` JWKS),
+`set_party` for each TDP/TDC/CCRP, `approve_ccr_release` (the CLI submits identical release
+proposals to both services), `set_jwt_validation_policy` for the GCA issuer, and
+`approve_app_digest`. For GCP Confidential Space CCRs the GCA issuer must be registered at
+ledger level on the ACL instance.
 
-- [Transparency service demo](../demo/cts_poc/README.md)
-- [GitHub hosted DID demo](../demo/github/README.md)
-- [CLI tests](../test/test_cli.py)
+## Security notes
 
-See [pyscitt](pyscitt/README.md) for more details.
+- **ACL Administrator can replace the bundle.** Mitigations: reproducible
+  `bundle_digest` (sha256 over JCS of app metadata and modules, excluding the generated
+  `build_info.js`), exposed by `/info` with `bundle_digest_approved`; all bundle updates are in
+  the ledger; `depa dc audit` recomputes the digest of the bundle served by
+  `GET /app/userDefinedEndpoints` and compares it with the governance-approved digest. `/info`
+  is an indicator only; auditors must recompute. Restrict the Administrator role and alert on
+  `userDefinedEndpoints` writes.
+- **Independent checks.** The CS and KMS each verify attestation and keep their own release
+  registry; compromise of one service's governance alone cannot release keys (the KMS also
+  enforces the TDP's policy and pinned CS keys).
+- **Revocation latency.** Revoking a contract stops new runs and RAT refreshes immediately; a RAT
+  issued before revocation remains usable at the KMS for at most 300 s.
+- **Host time is untrusted** (validity windows, deadlines); attestation, signatures and
+  ledger state are not affected by it.
+- Contract content, signatures, run events and receipts are stored in public (auditable) ledger
+  tables; do not put secrets in contracts or event data.
+- Virtual attestation requires `allow_virtual_attestation = true` (unanimous) and is for
+  development only.
 
-### Reproducing builds
+## Repository layout
 
-See [reproducibility.md](./docs/reproducibility.md) for instructions.
+```
+src/                          catalog, contracts, runs/receipts, service wiring
+packages/depa-ccf-common/     vendored shared code (do not edit here)
+test/unit/                    contract-service unit tests   test/integration/  shared e2e tests
+scripts/                      sandbox-up/down, deploy-acl, sync-common, check-common
+docker/Dockerfile.ccf-sandbox app.json (CCF endpoint metadata)  build_bundle.js
+```
 
-## Contributing
+`deploy/` and `.github/` are owned by the infrastructure workstream.
 
-This project welcomes contributions and suggestions. Please see the [Contribution guidelines](CONTRIBUTING.md).
+License: MIT (see LICENSE.txt, NOTICE).

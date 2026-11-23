@@ -1,0 +1,419 @@
+{
+  "endpoints": {
+    "/info": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "info",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Service identity, version, bundle digest and signing JWKS"
+        }
+      }
+    },
+    "/receipt": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "receipt",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "CCF receipt for ?transaction_id=<view>.<seqno>"
+        }
+      }
+    },
+    "/gov/bootstrap": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "govBootstrap",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "user_cose_sign1",
+          "user_cert",
+          "jwt"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "One-time operator bootstrap"
+        }
+      }
+    },
+    "/gov/proposals": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "govPropose",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Submit a signed governance proposal"
+        }
+      },
+      "get": {
+        "js_module": "index.js",
+        "js_function": "govListProposals",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "List proposals"
+        }
+      }
+    },
+    "/gov/proposals/{proposal_id}": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "govGetProposal",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Get a proposal"
+        }
+      }
+    },
+    "/gov/proposals/{proposal_id}/ballots": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "govVote",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Submit a signed ballot"
+        }
+      }
+    },
+    "/gov/members": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "govMembers",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Active DC members"
+        }
+      }
+    },
+    "/gov/constitution": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "govConstitution",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Constitution and effective thresholds"
+        }
+      }
+    },
+    "/gov/state": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "govState",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Settings, pinned peers, JWT policies, approved app digests"
+        }
+      }
+    },
+    "/parties": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "listParties",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Registered parties"
+        }
+      }
+    },
+    "/parties/{party_id}": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "getParty",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Get a party"
+        }
+      }
+    },
+    "/releases": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "listReleases",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "CCR release registry"
+        }
+      }
+    },
+    "/releases/{release_id}": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "getRelease",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Get a CCR release"
+        }
+      }
+    },
+    "/catalog/datasets": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "publishDataset",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Publish a dataset descriptor version (signed, owner)"
+        }
+      },
+      "get": {
+        "js_module": "index.js",
+        "js_function": "listCatalog",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "List catalog entries"
+        }
+      }
+    },
+    "/catalog/datasets/{owner}/{name}": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "getCatalogEntry",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Latest descriptor and version list"
+        }
+      }
+    },
+    "/catalog/datasets/{owner}/{name}/versions/{version}": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "getCatalogVersion",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "A descriptor version"
+        }
+      }
+    },
+    "/contracts": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "proposeContract",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Propose a contract (signed, tdc)"
+        }
+      },
+      "get": {
+        "js_module": "index.js",
+        "js_function": "listContracts",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "List contracts (?party=)"
+        }
+      }
+    },
+    "/contracts/{contract_id}": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "getContract",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Contract, digest, state, signatures"
+        }
+      }
+    },
+    "/contracts/{contract_id}/signatures": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "signContract",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Sign a contract (signed, required party)"
+        }
+      }
+    },
+    "/contracts/{contract_id}/revoke": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "revokeContract",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Revoke a contract (signed, required party)"
+        }
+      }
+    },
+    "/contracts/{contract_id}/runs": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "authorizeRun",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "jwt",
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Authorize a run and issue a RAT"
+        }
+      },
+      "get": {
+        "js_module": "index.js",
+        "js_function": "listRuns",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Runs of a contract"
+        }
+      }
+    },
+    "/contracts/{contract_id}/runs/{run_id}/events": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "postRunEvent",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Run event signed with the run key"
+        }
+      }
+    },
+    "/contracts/{contract_id}/runs/{run_id}/rat": {
+      "post": {
+        "js_module": "index.js",
+        "js_function": "refreshRat",
+        "forwarding_required": "always",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readwrite",
+        "openapi": {
+          "summary": "Refresh the RAT of an in-flight run (signed with the run key)"
+        }
+      }
+    },
+    "/runs/{run_id}": {
+      "get": {
+        "js_module": "index.js",
+        "js_function": "getRun",
+        "forwarding_required": "sometimes",
+        "redirection_strategy": "none",
+        "authn_policies": [
+          "no_auth"
+        ],
+        "mode": "readonly",
+        "openapi": {
+          "summary": "Run state, events and execution receipt"
+        }
+      }
+    }
+  }
+}

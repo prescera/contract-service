@@ -1,0 +1,12 @@
+DEPA Training v2 contract service
+Copyright (c) iSPIRT Foundation.
+
+Version 2 replaces the earlier C++ SCITT-based CCF application (Copyright (c)
+Microsoft Corporation, MIT license; see LICENSE.txt) with a TypeScript CCF
+application. The shared package packages/depa-ccf-common is vendored from
+depa-training-kms-azure, which is derived in part from the Azure
+privacy-sandbox / DEPA-inferencing KMS, Copyright (c) Microsoft Corporation,
+MIT license.
+
+Runtime dependency: @microsoft/ccf-app (Apache-2.0), Copyright (c) Microsoft
+Corporation.
