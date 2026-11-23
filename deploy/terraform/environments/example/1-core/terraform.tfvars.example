@@ -1,0 +1,23 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+tenant_id       = "00000000-0000-0000-0000-000000000000"
+
+environment  = "prod"
+region       = "centralindia"
+region_short = "cin"
+
+# Optional public gateway (parties and CCRs normally use the ledger endpoint).
+enable_gateway = false
+# gateway_hostname = "cs.dc.example.org"
+
+# Egress IP(s) of the machine/runner applying Terraform (Key Vault data plane).
+key_vault_allowed_ip_ranges = ["203.0.113.10"]
+
+# DC operator identities administering the ledger (object IDs). Empty = caller.
+ledger_administrator_principal_ids = []
+
+# GitHub environment allowed to renew the gateway certificate (gateway only).
+ops_github_oidc_subjects = []
+
+tags = {
+  owner = "dc-operations"
+}
