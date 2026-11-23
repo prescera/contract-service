@@ -2,83 +2,96 @@ name: Release
 
 on:
   push:
-    tags:
-      - "*.*.*"
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+  BUNDLE_PATH: dist/bundle.json
 
 jobs:
-  build_pyscitt:
-    name: "Build pyscitt"
-    runs-on: ubuntu-latest
-
+  verify:
+    name: Unit and integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      # Same tag/branch of the KMS by default; override with the variable KMS_REF.
+      KMS_REF: ${{ vars.KMS_REF || github.ref_name }}
+      DEPA_KMS_REPO: ${{ github.workspace }}/.deps/depa-training-kms-azure
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: '3.8'
-      
-      - name: Build pyscitt
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository_owner }}/depa-training-kms-azure
+          ref: ${{ env.KMS_REF }}
+          path: .deps/depa-training-kms-azure
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            .deps/depa-training-kms-azure/package-lock.json
+      - run: make build
+      - run: make test
+      - run: make test-integration
+
+  publish:
+    name: Publish bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: verify
+    permissions:
+      contents: write # create the GitHub release
+      id-token: write # provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Build bundle
+        run: make build
+      - name: Compute digest
         run: |
-          python3 -m pip install build
-          cd pyscitt
-          python3 -m build
-
-      - name: Upload dist folder
-        uses: actions/upload-artifact@v4
+          python -m pip install --require-hashes --no-deps -r .github/scripts/requirements-ci.txt
+          mkdir -p out
+          cp "${BUNDLE_PATH}" "out/depa-contract-service-bundle-${GITHUB_REF_NAME}.json"
+          python .github/scripts/bundle_digest.py dist > "out/depa-contract-service-bundle-${GITHUB_REF_NAME}.digest"
+          (cd out && sha256sum ./*.json > SHA256SUMS)
+          echo "bundle digest: $(cat out/*.digest)" >> "${GITHUB_STEP_SUMMARY}"
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          name: dist
-          path: pyscitt/dist
-
-  create_github_release:
-    name: "Create GitHub Release"
-    runs-on: ubuntu-latest
-    needs: build_pyscitt
-
-    permissions:
-      contents: write # IMPORTANT: this permission is mandatory for creating a GitHub Release
-    
-    steps:
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download pyscitt dist folder
-        uses: actions/download-artifact@v4
+          subject-path: out/*.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: dist
-          path: pyscitt/dist
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            pyscitt/dist/*.whl
-            pyscitt/dist/*.tar.gz
-            LICENSE.txt
-
-  publish_pyscitt_to_pypi:
-    name: "Publish pyscitt to PyPI"
-    runs-on: ubuntu-latest
-    needs: build_pyscitt
-
-    permissions:
-      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing to PyPi
-    
-    environment:
-      name: pypi
-      url: https://pypi.org/p/pyscitt
-      
-    steps:
-      - name: Download pyscitt dist folder
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: pyscitt/dist
-
-      - name: Publish pyscitt to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: pyscitt/dist
-          skip-existing: true
+          name: contract-service-bundle-${{ github.ref_name }}
+          path: out/
+          if-no-files-found: error
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" out/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Contract Service app bundle. Governance approves the digest in $(basename out/*.digest) via approve_app_digest; GET /info must report the same bundle_digest." \
+            --verify-tag
