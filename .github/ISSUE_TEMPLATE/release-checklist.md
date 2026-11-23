@@ -8,12 +8,10 @@ assignees: ''
 ---
 
 Checklist:
-- [ ] Link this issue to the correct milestone for this version.
-- [ ] Make sure all issues/PRs for the milestone are closed/merged.
-- [ ] Create a PR to update `CHANGELOG.md`.
-  - [ ] If this release upgrades CCF to the next major version, add the following note in the changelog:
-         "In order to upgrade an existing service to this version, it must first be upgraded to the version preceding this version."
-- [ ] Create a [release](https://github.com/microsoft/scitt-ccf-ledger/releases) with the new version number as git tag.
-- [ ] Check that CI is green.
-- [ ] Close the [milestone](https://github.com/microsoft/scitt-ccf-ledger/milestones) for this release.
-- [ ] Close this issue.
+- [ ] Link this issue to the milestone for this version and make sure its issues/PRs are closed.
+- [ ] `scripts/check-common.sh` passes against the matching depa-training-kms-azure release (shared code is identical).
+- [ ] Update `CHANGELOG.md`, including any protocol changes (`docs/specs/protocol.md` in depa-training).
+- [ ] If the release upgrades CCF to a new major version, note that existing services must first upgrade to the preceding version, and confirm the version is available on Azure Confidential Ledger.
+- [ ] Tag `vX.Y.Z` and check that CI and the release workflow are green.
+- [ ] Publish the bundle digest from the release workflow, so Data Collaborative members can approve it (`approve_app_digest`) before it is deployed.
+- [ ] Close the milestone and this issue.
