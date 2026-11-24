@@ -44,6 +44,22 @@ Governance cannot change contract content; it can only revoke (`revoke_contract`
    `binding_hash`) for **every** contract dataset, checks privacy spent ≤ budget, output formats
    and recipients, and the metrics allowlist, then returns a CS-signed receipt.
 
+## Signing contracts (how parties use this service)
+
+Parties never call this API by hand: the `depa` CLI and the `depa-console` web UI in
+[depa-training](https://github.com/prescera/depa-training) sign every request with the party's
+own ES256 key. Each organisation is a separate party, registered by a Data Collaborative
+governance vote; there are no GitHub DIDs and no shared provider identity.
+
+```bash
+depa --party tdc    contract propose contract.json      # consumer
+depa --party bank-a contract verify  <contract_id>      # each data provider reviews…
+depa --party bank-a contract sign    <contract_id>      # …and signs (refused unless verify passes)
+depa contract status <contract_id>                      # active once every required party signed
+```
+
+Walkthrough: [identities, contracts and keys](https://github.com/prescera/depa-training/blob/main/docs/guides/identities-contracts-keys.md).
+
 ## API
 
 All paths are under `/app`. "signed" = body `{"jws": …}` (§3.2). Details: [docs/api.md](docs/api.md).
