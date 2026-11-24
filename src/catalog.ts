@@ -81,10 +81,18 @@ export function validateFederation(v: unknown, path: string): void {
     optStr(g.service_account, `${path}.gcp.service_account`, { max: 256 });
   }
   if (f.azure !== undefined) {
+    // Two forms (spec §10, §10.1): the TDP-operated SAS broker {broker_url, audience}, used while
+    // the KMS signs ES256 tokens, or native Entra federation {tenant_id, client_id}.
     const z = obj(f.azure, `${path}.azure`);
-    keys(z, `${path}.azure`, ["tenant_id", "client_id"]);
-    str(z.tenant_id, `${path}.azure.tenant_id`, { max: 64 });
-    str(z.client_id, `${path}.azure.client_id`, { max: 64 });
+    if ("broker_url" in z) {
+      keys(z, `${path}.azure`, ["broker_url", "audience"]);
+      str(z.broker_url, `${path}.azure.broker_url`, { re: /^https:\/\/[^\s?#]+$/, max: 2048 });
+      str(z.audience, `${path}.azure.audience`, { max: 512 });
+    } else {
+      keys(z, `${path}.azure`, ["tenant_id", "client_id"]);
+      str(z.tenant_id, `${path}.azure.tenant_id`, { max: 64 });
+      str(z.client_id, `${path}.azure.client_id`, { max: 64 });
+    }
   }
 }
 
