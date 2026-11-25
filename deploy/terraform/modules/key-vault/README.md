@@ -28,3 +28,7 @@ Outputs: `id`, `name`, `uri`, `member_certificate_name`, `member_certificate_pem
 `frontend_certificate_resource_manager_versionless_id`.
 
 > Vendored copy of `depa-training-kms-azure/deploy/terraform/modules/key-vault`; keep the `.tf` files identical (each DC service repo is self-contained).
+
+`purge_protection_enabled` (default `true`) can be turned off for demos, so that destroying the
+stack (with the azurerm provider feature `key_vault.purge_soft_delete_on_destroy`) purges the
+vault and frees its name. Production keeps purge protection on.
